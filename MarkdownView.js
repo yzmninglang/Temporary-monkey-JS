@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Markdown Viewer (with MathJax Support)
+// @name         Markdown Viewer (with MathJax Support and Code Highlighting)
 // @namespace    http://tampermonkey.net/
-// @version      4.0.0
-// @description  Renders Markdown files with beautiful math formula support (MathJax/SVG) and fixes image loading on local servers.
-// @description:zh-CN  支持MathJax数学公式SVG渲染的Markdown查看器，并修复了本地服务器的图片防盗链问题。公式过长时可滚动。
-// @author       anga83 (MathJax integration by Gemini)
+// @version      4.1.0
+// @description  Renders Markdown files with beautiful math formula support (MathJax/SVG), code highlighting, and fixes image loading on local servers.
+// @description:zh-CN  支持MathJax数学公式SVG渲染和代码高亮的Markdown查看器，并修复了本地服务器的图片防盗链问题。公式过长时可滚动。
+// @author       anga83 (MathJax integration by Gemini, Code highlighting enhanced)
 // @match        *://*/*.md
 // @include      file://*/*.md
 // @exclude      https://github.com/*
@@ -26,7 +26,10 @@
 //
 // ==========================================================================================
 // @require      https://share.ninglang.top:7012/web/resource/markdown/marked.min.js
+// @require      https://share.ninglang.top:7012/web/resource/markdown/highlight.min.js
 // @resource     css_darkdown https://share.ninglang.top:7012/web/resource/markdown/darkdown.css
+// @resource     css_highlight_light https://share.ninglang.top:7012/web/resource/markdown/github.min.css
+// @resource     css_highlight_dark https://share.ninglang.top:7012/web/resource/markdown/github-dark.min.css
 // ==/UserScript==
 
 (function() {
@@ -54,6 +57,7 @@
     const THEME_KEY = 'markdownViewer_theme';
     const STYLE_ELEMENT_ID_THEME = 'userscript-markdown-theme-style';
     const STYLE_ELEMENT_ID_BASE = 'userscript-markdown-base-style';
+    const STYLE_ELEMENT_ID_HIGHLIGHT = 'userscript-highlight-style';
 
     function removeExistingStyleElement(id) {
         const existingStyle = document.getElementById(id);
@@ -66,6 +70,23 @@
         style.id = id;
         style.textContent = css;
         (document.head || document.documentElement).appendChild(style);
+    }
+
+    // --- 代码高亮主题设置 ---
+    function applyHighlightTheme() {
+        const chosenTheme = GM_getValue(THEME_KEY, 'system');
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        let useDarkTheme = (chosenTheme === 'dark') || (chosenTheme === 'system' && prefersDarkScheme);
+
+        removeExistingStyleElement(STYLE_ELEMENT_ID_HIGHLIGHT);
+
+        if (useDarkTheme) {
+            const darkHighlightCss = GM_getResourceText("css_highlight_dark") || '';
+            addStyleElement(STYLE_ELEMENT_ID_HIGHLIGHT, darkHighlightCss);
+        } else {
+            const lightHighlightCss = GM_getResourceText("css_highlight_light") || '';
+            addStyleElement(STYLE_ELEMENT_ID_HIGHLIGHT, lightHighlightCss);
+        }
     }
 
     // --- 主题设置 (亮色/暗色) ---
@@ -100,14 +121,19 @@
                     border: 1px solid rgb(70, 70, 70) !important;
                     color: rgb(220, 220, 220) !important;
                 }
-                main.markdown-body pre { background-color: rgb(40, 42, 44) !important; border: 1px solid rgb(60, 62, 64) !important; }
-                main.markdown-body pre code { color: rgb(220, 220, 220) !important; }
+                main.markdown-body pre { 
+                    background-color: rgb(13, 17, 23) !important; 
+                    border: 1px solid rgb(48, 54, 61) !important; 
+                }
                 main.markdown-body img { filter: brightness(.8) contrast(1.2); }
                 .copy-btn { background-color: #444d56 !important; color: #e1e4e8 !important; border: 1px solid #586069 !important; }
                 .copy-btn:hover { background-color: #586069 !important; }
             `;
             addStyleElement(STYLE_ELEMENT_ID_THEME, darkThemeCss);
         }
+
+        // 同时应用代码高亮主题
+        applyHighlightTheme();
     }
 
     // --- 菜单命令 ---
@@ -129,13 +155,25 @@
             @media (max-width: 900px) {
                 main.markdown-body { width: 100%; margin: 0; padding: 1.25rem 0.9375rem; font-size: 1rem; border-radius: 0; border: none; box-shadow: none; }
             }
-            code, pre { font-family: Consolas, "Courier New", monospace; font-size: 0.875rem; border-radius: 6px; }
+            code, pre { font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', 'Courier New', monospace; font-size: 0.875rem; border-radius: 6px; }
             code:not(pre > code) { background-color: rgba(27,31,35,.07); padding: .2em .4em; margin: 0 .2em; }
-            pre { position: relative; padding: 1rem; overflow: auto; background-color: #f6f8fa; border: 1px solid #e1e4e8; }
+            pre { 
+                position: relative; padding: 1rem; overflow: auto; 
+                background-color: #f6f8fa; border: 1px solid #e1e4e8; 
+                margin: 1em 0;
+            }
+            pre code {
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border: none !important;
+                border-radius: 0 !important;
+                font-size: inherit !important;
+            }
             .copy-btn {
                 position: absolute; top: 0.5rem; right: 0.5rem; background-color: #e1e4e8; border: 1px solid #d1d5da;
                 border-radius: 0.375rem; padding: 0.1875rem 0.5rem; font-size: 0.75rem; cursor: pointer; opacity: 0;
-                transition: opacity 0.2s ease-in-out, background-color 0.2s ease-in-out;
+                transition: opacity 0.2s ease-in-out, background-color 0.2s ease-in-out; z-index: 10;
             }
             pre:hover .copy-btn { opacity: 1; }
             .copy-btn:hover { background-color: #d1d5da; }
@@ -162,19 +200,44 @@
             mjx-container[display="true"] {
                 display: block; /* 确保块级公式正确显示 */
             }
+
+            /* === 代码高亮增强样式 === */
+            .hljs {
+                background: transparent !important;
+                padding: 0 !important;
+            }
+            
+            /* 语言标签样式 */
+            .code-lang-label {
+                position: absolute;
+                top: 0.5rem;
+                left: 1rem;
+                background-color: rgba(255, 255, 255, 0.9);
+                color: #666;
+                padding: 0.1rem 0.4rem;
+                border-radius: 3px;
+                font-size: 0.7rem;
+                font-weight: 500;
+                opacity: 0.7;
+                pointer-events: none;
+                z-index: 5;
+            }
         `);
     }
 
-    // --- 为代码块添加复制按钮 ---
+    // --- 为代码块添加复制按钮和语言标签 ---
     function addCopyButtons() {
         document.querySelectorAll('main.markdown-body pre').forEach(pre => {
             if (pre.querySelector('.copy-btn')) return;
             const code = pre.querySelector('code');
             if (!code) return;
+
+            // 添加复制按钮
             const button = document.createElement('button');
             button.className = 'copy-btn';
             button.textContent = '复制';
             pre.appendChild(button);
+            
             button.addEventListener('click', () => {
                 navigator.clipboard.writeText(code.innerText).then(() => {
                     button.textContent = '已复制!';
@@ -184,6 +247,40 @@
                     console.error('Failed to copy text: ', err);
                 });
             });
+
+            // 添加语言标签（如果有语言信息）
+            const classes = Array.from(code.classList);
+            const langClass = classes.find(cls => cls.startsWith('language-'));
+            if (langClass) {
+                const lang = langClass.replace('language-', '');
+                const langLabel = document.createElement('div');
+                langLabel.className = 'code-lang-label';
+                langLabel.textContent = lang.toUpperCase();
+                pre.appendChild(langLabel);
+            }
+        });
+    }
+
+    // --- 初始化代码高亮 ---
+    function initializeCodeHighlighting() {
+        if (typeof hljs === 'undefined') {
+            console.warn('Markdown Viewer: highlight.js 未正确加载');
+            return;
+        }
+
+        // 配置 highlight.js
+        hljs.configure({
+            ignoreUnescapedHTML: true,
+            languages: ['javascript', 'python', 'java', 'cpp', 'c', 'html', 'css', 'json', 'xml', 'bash', 'shell', 'sql', 'php', 'go', 'rust', 'typescript']
+        });
+
+        // 高亮所有代码块
+        document.querySelectorAll('main.markdown-body pre code').forEach((block) => {
+            try {
+                hljs.highlightElement(block);
+            } catch (e) {
+                console.warn('代码高亮失败:', e);
+            }
         });
     }
 
@@ -252,7 +349,6 @@
         },
     };
 
-
     // --- 脚本主执行函数 ---
     function initializeViewer() {
         // 1. 初始化页面基本设置
@@ -305,9 +401,13 @@
             document.body.appendChild(markdownBodyMain);
             markdownBodyMain.innerHTML = htmlContent;
 
+            // 7. 初始化代码高亮
+            initializeCodeHighlighting();
+
+            // 8. 添加复制按钮和语言标签
             addCopyButtons();
 
-            // 7. 新增：加载 MathJax 并渲染公式
+            // 9. 新增：加载 MathJax 并渲染公式
             setupMathJax();
 
         } catch (e) {
