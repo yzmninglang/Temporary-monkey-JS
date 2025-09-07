@@ -121,9 +121,9 @@
                     border: 1px solid rgb(70, 70, 70) !important;
                     color: rgb(220, 220, 220) !important;
                 }
-                main.markdown-body pre { 
-                    background-color: rgb(13, 17, 23) !important; 
-                    border: 1px solid rgb(48, 54, 61) !important; 
+                main.markdown-body pre {
+                    background-color: rgb(13, 17, 23) !important;
+                    border: 1px solid rgb(48, 54, 61) !important;
                 }
                 main.markdown-body img { filter: brightness(.8) contrast(1.2); }
                 .copy-btn { background-color: #444d56 !important; color: #e1e4e8 !important; border: 1px solid #586069 !important; }
@@ -157,9 +157,9 @@
             }
             code, pre { font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', 'Courier New', monospace; font-size: 0.875rem; border-radius: 6px; }
             code:not(pre > code) { background-color: rgba(27,31,35,.07); padding: .2em .4em; margin: 0 .2em; }
-            pre { 
-                position: relative; padding: 1rem; overflow: auto; 
-                background-color: #f6f8fa; border: 1px solid #e1e4e8; 
+            pre {
+                position: relative; padding: 1rem; overflow: auto;
+                background-color: #f6f8fa; border: 1px solid #e1e4e8;
                 margin: 1em 0;
             }
             pre code {
@@ -186,7 +186,7 @@
             h6 { font-size: 1rem; color: #777; }
             main.markdown-body img { display: block; margin: 1.5rem auto; max-width: 90%; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
             blockquote { border-left: .25em solid #dfe2e5; padding: 0 1em; color: #6a737d; margin-left: 0; margin-right: 0; }
-            table { display: block; width: max-content; max-width: 100%; overflow: auto; border-spacing: 0; border-collapse: collapse; margin: 1em 0; }
+            table { display: block; width: max-content; max-width: 100%; overflow: auto; border-spacing: 0; border-collapse: collapse; margin: 1em auto; }
             table th, table td { padding: 6px 13px; border: 1px solid #dfe2e5; }
 
             /* === 新增：使 MathJax 公式容器可水平滚动 === */
@@ -206,7 +206,7 @@
                 background: transparent !important;
                 padding: 0 !important;
             }
-            
+
             /* 语言标签样式 */
             .code-lang-label {
                 position: absolute;
@@ -237,7 +237,7 @@
             button.className = 'copy-btn';
             button.textContent = '复制';
             pre.appendChild(button);
-            
+
             button.addEventListener('click', () => {
                 navigator.clipboard.writeText(code.innerText).then(() => {
                     button.textContent = '已复制!';
