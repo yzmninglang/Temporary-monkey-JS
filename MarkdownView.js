@@ -1,23 +1,32 @@
 // ==UserScript==
-// @name         Markdown Viewer (Modern CSS Theme)
+// @name         Markdown Viewer (with MathJax Support)
 // @namespace    http://tampermonkey.net/
-// @version      2.2.2
-// @description  Fixes image loading issues caused by referrer policy on local servers.
-// @description:en Fixes image loading issues caused by referrer policy on local servers.
-// @description:zh-CN  修复了因本地服务器的Referrer Policy（防盗链策略）导致的图片无法加载问题。
-// @author       https://github.com/anga83 (with custom CSS integration)
+// @version      4.0.0
+// @description  Renders Markdown files with beautiful math formula support (MathJax/SVG) and fixes image loading on local servers.
+// @description:zh-CN  支持MathJax数学公式SVG渲染的Markdown查看器，并修复了本地服务器的图片防盗链问题。公式过长时可滚动。
+// @author       anga83 (MathJax integration by Gemini)
 // @match        *://*/*.md
 // @include      file://*/*.md
 // @exclude      https://github.com/*
 // @exclude      http://github.com/*
-// @require      https://cdn.jsdelivr.net/npm/marked@12.0.2/lib/marked.umd.min.js
-// @resource     css_darkdown https://raw.githubusercontent.com/yrgoldteeth/darkdowncss/master/darkdown.css
 // @grant        GM_getResourceText
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
-// @downloadURL https://update.greasyfork.org/scripts/538817/Markdown%20Viewer.user.js
-// @updateURL https://update.greasyfork.org/scripts/538817/Markdown%20Viewer.meta.js
+// @grant        GM_addStyle
+
+// ==========================================================================================
+// == [重要] 请将下面的URL替换为您服务器上文件的实际地址 ==
+//
+// 示例：如果您将文件放在服务器的 /assets/ 目录下，
+// 并且您的服务器地址是 http://192.168.1.100 或 http://[2001:db8::1]
+// 则将 "https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+// 替换为 "http://192.168.1.100/assets/js/marked.min.js"
+// 或 "http://[2001:db8::1]/assets/js/marked.min.js"
+//
+// ==========================================================================================
+// @require      https://share.ninglang.top:7012/web/resource/markdown/marked.min.js
+// @resource     css_darkdown https://share.ninglang.top:7012/web/resource/markdown/darkdown.css
 // ==/UserScript==
 
 (function() {
@@ -32,7 +41,7 @@
         (document.head || document.documentElement).appendChild(meta);
     }
 
-    // --- 新增：添加 Referrer Policy 元标签以解决图片防盗链问题 ---
+    // --- 添加 Referrer Policy 元标签以解决图片防盗链问题 ---
     function addReferrerMetaTag() {
         if (document.querySelector('meta[name="referrer"]')) return;
         const meta = document.createElement('meta');
@@ -141,12 +150,25 @@
             blockquote { border-left: .25em solid #dfe2e5; padding: 0 1em; color: #6a737d; margin-left: 0; margin-right: 0; }
             table { display: block; width: max-content; max-width: 100%; overflow: auto; border-spacing: 0; border-collapse: collapse; margin: 1em 0; }
             table th, table td { padding: 6px 13px; border: 1px solid #dfe2e5; }
+
+            /* === 新增：使 MathJax 公式容器可水平滚动 === */
+            mjx-container {
+                max-width: 100%;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding-bottom: 4px; /* 为滚动条留出空间 */
+                vertical-align: middle; /* 优化行内公式与文本的对齐 */
+            }
+            mjx-container[display="true"] {
+                display: block; /* 确保块级公式正确显示 */
+            }
         `);
     }
 
     // --- 为代码块添加复制按钮 ---
     function addCopyButtons() {
         document.querySelectorAll('main.markdown-body pre').forEach(pre => {
+            if (pre.querySelector('.copy-btn')) return;
             const code = pre.querySelector('code');
             if (!code) return;
             const button = document.createElement('button');
@@ -165,28 +187,108 @@
         });
     }
 
+    // --- 新增：加载并运行MathJax来渲染公式 ---
+    function setupMathJax() {
+        if (window.MathJax || document.getElementById('mathjax-script')) return;
+
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            svg: {
+                fontCache: 'global',
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+            },
+            startup: {
+                pageReady: () => {
+                    return MathJax.startup.defaultPageReady();
+                }
+            }
+        };
+
+        const script = document.createElement('script');
+        script.id = 'mathjax-script';
+        script.src = 'https://share.ninglang.top:7012/web/resource/markdown/tex-svg.js';
+        script.async = true;
+        (document.head || document.documentElement).appendChild(script);
+    }
+
+    // --- 新增：一个简单的marked扩展，以防止其破坏MathJax公式 ---
+    const mathjaxExtension = {
+        name: 'mathjax',
+        level: 'inline',
+        start(src) {
+            return src.indexOf('$');
+        },
+        tokenizer(src) {
+            const blockRule = /^\$\$\s*([\s\S]+?)\s*\$\$/;
+            const inlineRule = /^\$((?:\\\$|[^$])+?)\$/;
+            let match;
+
+            if (match = blockRule.exec(src)) {
+                return {
+                    type: 'mathjax',
+                    raw: match[0],
+                    text: match[1].trim(),
+                    displayMode: true,
+                };
+            }
+            if (match = inlineRule.exec(src)) {
+                return {
+                    type: 'mathjax',
+                    raw: match[0],
+                    text: match[1].trim(),
+                    displayMode: false,
+                };
+            }
+        },
+        renderer(token) {
+            // 直接将原始公式文本返回，让MathJax处理
+            return token.raw;
+        },
+    };
+
+
     // --- 脚本主执行函数 ---
     function initializeViewer() {
+        // 1. 初始化页面基本设置
         addViewportMetaTag();
-        addReferrerMetaTag(); //  <--  关键修复
+        addReferrerMetaTag();
         applyBaseStyles();
         applyThemeStyle();
 
+        // 2. 监听系统主题变化
         if (GM_getValue(THEME_KEY, 'system') === 'system') {
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
             mediaQuery.removeEventListener('change', applyThemeStyle);
             mediaQuery.addEventListener('change', applyThemeStyle);
         }
 
+        // 3. 创建渲染容器
         const markdownBodyMain = document.createElement('main');
         markdownBodyMain.className = 'markdown-body';
 
-        if (typeof marked === 'undefined' || typeof marked.parse !== 'function') {
-            markdownBodyMain.innerHTML = `<p style="color:red; font-family:sans-serif;">错误: Marked.js 库未能正确加载。</p>`;
-            document.body.innerHTML = ''; document.body.appendChild(markdownBodyMain);
+        // 4. 检查必需的库是否都已加载
+        if (typeof marked === 'undefined') {
+            const missing = 'Marked.js';
+            markdownBodyMain.innerHTML = `<p style="color:red; font-family:sans-serif;">错误: 必需的库未能正确加载: ${missing}。请检查脚本顶部的@require链接是否正确。</p>`;
+            document.body.innerHTML = '';
+            document.body.appendChild(markdownBodyMain);
             return;
         }
 
+        // 5. 新增：使用自定义的MathJax扩展配置Marked
+        try {
+            marked.use({ extensions: [mathjaxExtension] });
+        } catch (e) {
+            console.error("Markdown Viewer: Failed to initialize mathjax extension for marked.", e);
+        }
+
+        // 6. 解析和渲染
         try {
             let markdownContentToParse = "";
             if (document.contentType === 'text/markdown' || (location.protocol === 'file:' && document.body?.children.length === 1 && document.body.firstChild.tagName === 'PRE')) {
@@ -204,6 +306,10 @@
             markdownBodyMain.innerHTML = htmlContent;
 
             addCopyButtons();
+
+            // 7. 新增：加载 MathJax 并渲染公式
+            setupMathJax();
+
         } catch (e) {
             console.error("Markdown Viewer: 解析Markdown时出错:", e);
             markdownBodyMain.innerHTML = `<p style="color:red; font-family:sans-serif;">渲染Markdown出错: ${e.message}。</p>`;
