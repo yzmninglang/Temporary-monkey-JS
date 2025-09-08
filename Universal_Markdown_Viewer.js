@@ -37,7 +37,8 @@
         enableImageZoom: true,        // 图片点击放大功能
         enableCodeCopy: true,         // 代码块复制按钮
         enableMathFormula: true,      // 数学公式渲染（KaTeX）
-        enableMermaidDiagram: true    // Mermaid图表渲染
+        enableMermaidDiagram: true,   // Mermaid图表渲染
+        showMobileTocButton: false     // 移动端目录栏悬浮按钮
     };
 
     // ==================== 资源链接配置 ====================
@@ -648,7 +649,7 @@ const RESOURCES = {
                 overflow-y: hidden;
                 -webkit-overflow-scrolling: touch;
                 padding-bottom: 3px; /* 为滚动条留出空间 */
-                margin: 0.1em 0; /* 减少上下边距 */
+                margin: 0.3em 0; /* 减少上下边距 */
                 font-size: 0.9em; /* 减小公式字体大小 */
             }
 
@@ -664,26 +665,26 @@ const RESOURCES = {
             
             /* 移动端块级数学公式内部元素优化 */
             .katex-display .katex {
-                font-size: 1.2em; /* 进一步减小KaTeX内部字体 */
+                font-size: 1.0em; /* 进一步减小KaTeX内部字体 */
             }
             
             section eqn .katex {
-                font-size: 1.2em; /* 进一步减小KaTeX内部字体 */
+                font-size: 1.0em; /* 进一步减小KaTeX内部字体 */
             }
             
             /* 移动端数学公式行高优化 */
             .katex-display .katex-html {
-                line-height: 0.8; /* 减小行高 */
+                line-height: 1.2; /* 减小行高 */
             }
             
             section eqn .katex-html {
-                line-height: 0.8; /* 减小行高 */
+                line-height: 1.2; /* 减小行高 */
             }
         }
 
         /* 隐藏/显示侧边栏的按钮 */
         .sidebar-toggle {
-            display: none;
+            display: ${FEATURE_TOGGLES.showMobileTocButton ? 'none' : 'none'};
             position: fixed;
             top: 20px;
             left: 20px;
@@ -699,7 +700,7 @@ const RESOURCES = {
 
         @media (max-width: 900px) {
             .sidebar-toggle {
-                display: block;
+                display: ${FEATURE_TOGGLES.showMobileTocButton ? 'block' : 'none'};
                 margin: 5px; /* 减少按钮边距 */
             }
 
@@ -1468,7 +1469,7 @@ const RESOURCES = {
 
             // 更新页面内容
             document.body.innerHTML = `
-                <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+                ${FEATURE_TOGGLES.showMobileTocButton ? '<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>' : ''}
                 <div class="sidebar">
                     <div id="sidebar-content">
                         ${backButtonHTML}
