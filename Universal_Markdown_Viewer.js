@@ -41,6 +41,35 @@
         showMobileTocButton: false     // 移动端目录栏悬浮按钮
     };
 
+    // ==================== 移动端数学公式大小配置 ====================
+    const MOBILE_FORMULA_CONFIG = {
+        // 行间公式配置
+        display: {
+            // 基础移动端 (≤ 900px)
+            base: {
+                fontSize: '1.1em',
+                lineHeight: '1.5',
+                minHeight: '2em',
+                padding: '0.5em 0',
+                margin: '0.5em 0'
+            },
+            // 小屏设备 (≤ 600px)
+            small: {
+                fontSize: '1.12em'
+            },
+            // 超小屏设备 (≤ 400px)
+            xsmall: {
+                fontSize: '0.8em',
+                margin: '0.3em 0'
+            }
+        },
+        // 行内公式配置
+        inline: {
+            fontSize: '1.16em',
+            lineHeight: '1.8'
+        }
+    };
+
     // ==================== 资源链接配置 ====================
     // 以下是所需的CDN资源链接，可以下载到本地后修改这些路径
 const RESOURCES = {
@@ -583,15 +612,6 @@ const RESOURCES = {
             text-align: center;
         }
 
-        /* 图片加载失败时的样式 */
-        .markdownRoot img[src*="data:image/svg+xml"] {
-            background: #f8f9fa;
-            border: 2px dashed var(--border);
-            padding: 20px;
-            opacity: 0.7;
-            filter: none;
-        }
-
         /* 响应式图片 - 移动端优化 */
         @media (max-width: 900px) {
             .markdownRoot img {
@@ -631,6 +651,14 @@ const RESOURCES = {
                 margin: 0;
                 max-width: 100%;
                 box-sizing: border-box;
+                line-height: 1.8; /* 增加整体行高，为行内公式预留空间 */
+            }
+
+            /* 包含公式的段落特殊处理 */
+            .markdownRoot p:has(.katex),
+            .markdownRoot li:has(.katex) {
+                line-height: 2.0 !important; /* 包含行内公式的段落增加行高 */
+                margin: 0.8em 0; /* 增加段落间距 */
             }
 
             .markdown-tools {
@@ -642,15 +670,18 @@ const RESOURCES = {
                 box-sizing: border-box;
             }
 
-            /* 移动端块级数学公式特别优化 */
+            /* 移动端块级数学公式 - 使用配置对象 */
             .katex-display {
                 max-width: 100%;
                 overflow-x: auto;
                 overflow-y: hidden;
                 -webkit-overflow-scrolling: touch;
-                padding-bottom: 3px; /* 为滚动条留出空间 */
-                margin: 0.3em 0; /* 减少上下边距 */
-                font-size: 0.9em; /* 减小公式字体大小 */
+                padding-bottom: 3px;
+                margin: ${MOBILE_FORMULA_CONFIG.display.base.margin};
+                font-size: ${MOBILE_FORMULA_CONFIG.display.base.fontSize};
+                line-height: ${MOBILE_FORMULA_CONFIG.display.base.lineHeight} !important;
+                min-height: ${MOBILE_FORMULA_CONFIG.display.base.minHeight};
+                padding: ${MOBILE_FORMULA_CONFIG.display.base.padding};
             }
 
             section eqn {
@@ -659,26 +690,73 @@ const RESOURCES = {
                 overflow-y: hidden;
                 -webkit-overflow-scrolling: touch;
                 padding-bottom: 6px;
-                margin: 0.3em 0; /* 减少上下边距 */
-                font-size: 0.9em; /* 减小公式字体大小 */
+                margin: ${MOBILE_FORMULA_CONFIG.display.base.margin};
+                font-size: ${MOBILE_FORMULA_CONFIG.display.base.fontSize};
+                line-height: ${MOBILE_FORMULA_CONFIG.display.base.lineHeight} !important;
+                min-height: ${MOBILE_FORMULA_CONFIG.display.base.minHeight};
+                padding: ${MOBILE_FORMULA_CONFIG.display.base.padding};
             }
             
-            /* 移动端块级数学公式内部元素优化 */
+            /* 移动端块级数学公式内部元素 */
             .katex-display .katex {
-                font-size: 1.0em; /* 进一步减小KaTeX内部字体 */
+                font-size: ${MOBILE_FORMULA_CONFIG.display.base.fontSize};
             }
             
             section eqn .katex {
-                font-size: 1.0em; /* 进一步减小KaTeX内部字体 */
+                font-size: ${MOBILE_FORMULA_CONFIG.display.base.fontSize};
             }
             
-            /* 移动端数学公式行高优化 */
-            .katex-display .katex-html {
-                line-height: 1.2; /* 减小行高 */
+            /* 行内公式移动端优化 - 使用配置对象 */
+            .katex {
+                font-size: ${MOBILE_FORMULA_CONFIG.inline.fontSize} !important;
+                line-height: ${MOBILE_FORMULA_CONFIG.inline.lineHeight} !important;
+                vertical-align: baseline;
             }
             
-            section eqn .katex-html {
-                line-height: 1.2; /* 减小行高 */
+        }
+
+        /* 小屏设备 - 使用配置对象 */
+        @media (max-width: 600px) {
+            .katex-display {
+                font-size: ${MOBILE_FORMULA_CONFIG.display.small.fontSize};
+            }
+
+            section eqn {
+                font-size: ${MOBILE_FORMULA_CONFIG.display.small.fontSize};
+            }
+        }
+
+        /* 超小屏设备 - 使用配置对象 */
+        @media (max-width: 400px) {
+            .katex-display {
+                font-size: ${MOBILE_FORMULA_CONFIG.display.xsmall.fontSize};
+                margin: ${MOBILE_FORMULA_CONFIG.display.xsmall.margin};
+            }
+
+            section eqn {
+                font-size: ${MOBILE_FORMULA_CONFIG.display.xsmall.fontSize};
+                margin: ${MOBILE_FORMULA_CONFIG.display.xsmall.margin};
+            }
+        }
+
+        /* 移动设备基本处理 */
+        @media (max-width: 900px) {
+            /* 超长公式横向滚动 */
+            .katex-display[style*="width"],
+            section eqn[style*="width"] {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* 确保公式在小屏幕上的基本可见性 */
+            .katex .frac-line,
+            .katex .sqrt-line {
+                min-height: 0.04em;
+            }
+
+            /* 矩阵紧凑显示 */
+            .katex .arraycolsep {
+                width: 0.3em;
             }
         }
 
@@ -959,7 +1037,7 @@ const RESOURCES = {
             };
         }
 
-        // 优化图片处理
+        // 优化图片处理 - 参考markdownview.js的正确方式
         const originalImageRule = md.renderer.rules.image;
         md.renderer.rules.image = function(tokens, idx, options, env, self) {
             const token = tokens[idx];
@@ -975,16 +1053,11 @@ const RESOURCES = {
                     token.attrs[srcIndex][1] = baseUrl + src;
                 }
 
-                // 添加图片加载错误处理和样式优化
+                // 简化图片标签，避免CORS问题
                 const altIndex = token.attrIndex('alt');
                 const alt = altIndex >= 0 ? token.attrs[altIndex][1] : '';
 
-                return `<img src="${token.attrs[srcIndex][1]}" alt="${alt}"
-                        onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4gPHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZjlmYSIvPiA8dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNmE3Mzc5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+5Zu+5YOP5peg5rOV5Yqg6L29PC90ZXh0PiA8L3N2Zz4='; this.title='图片加载失败: ${alt}';"
-                        style="display: block; margin: 1.5rem auto; max-width: 90%; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"
-                        loading="lazy"
-                        crossorigin="anonymous"
-                        referrerpolicy="no-referrer" />`;
+                return `<img src="${token.attrs[srcIndex][1]}" alt="${alt}" />`;
             }
 
             return originalImageRule ? originalImageRule(tokens, idx, options, env, self) : self.renderToken(tokens, idx, options);
@@ -1280,26 +1353,23 @@ const RESOURCES = {
         console.log('数学公式渲染完成');
     }
 
-    // 初始化图片功能
+    // 初始化图片功能 - 简化版本
     function initializeImageFeatures() {
         // 为所有图片添加点击放大功能（如果启用）
         const images = document.querySelectorAll('.markdownRoot img');
         images.forEach(img => {
-            // 只对成功加载的图片添加放大功能
-            if (!img.src.startsWith('data:image/svg+xml')) {
-                if (FEATURE_TOGGLES.enableImageZoom) {
-                    img.addEventListener('click', function() {
-                        showImageModal(this.src, this.alt);
-                    });
-                    // 添加缩放光标样式
-                    img.style.cursor = 'zoom-in';
-                } else {
-                    // 如果禁用了缩放，移除缩放光标
-                    img.style.cursor = 'default';
-                }
+            if (FEATURE_TOGGLES.enableImageZoom) {
+                img.addEventListener('click', function() {
+                    showImageModal(this.src, this.alt);
+                });
+                // 添加缩放光标样式
+                img.style.cursor = 'zoom-in';
+            } else {
+                // 如果禁用了缩放，移除缩放光标
+                img.style.cursor = 'default';
             }
 
-            // 图片加载成功后移除加载失败的样式
+            // 图片加载成功后确保样式正确
             img.addEventListener('load', function() {
                 this.style.opacity = '1';
             });
