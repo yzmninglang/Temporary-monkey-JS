@@ -9,16 +9,11 @@
 // @match        file://*/*.mdown
 // @match        file://*/*.mkd
 // @match        file://*/*.mkdn
-// @match        http://*/*/*.md
-// @match        https://*/*/*.md
-// @match        http://*/*/*.markdown
-// @match        https://*/*/*.markdown
-// @match        http://*/*/*.mdown
-// @match        https://*/*/*.mdown
-// @match        http://*/*/*.mkd
-// @match        https://*/*/*.mkd
-// @match        http://*/*/*.mkdn
-// @match        https://*/*/*.mkdn
+// @match        http://192.168.*/*.md
+// @match        https://192.168.*/*.md
+// @match        https://*.ninglang.top*/*.md
+// @match        http://*.ninglang.top*/*.md
+
 // @grant        none
 // @run-at       document-end
 // @connect      *
@@ -38,7 +33,8 @@
         enableCodeCopy: true,         // 代码块复制按钮
         enableMathFormula: true,      // 数学公式渲染（KaTeX）
         enableMermaidDiagram: true,   // Mermaid图表渲染
-        showMobileTocButton: false     // 移动端目录栏悬浮按钮
+        enableVideoPlayback: true,    // 视频播放支持（桌面端和移动端）
+        showMobileTocButton: false    // 移动端目录栏悬浮按钮
     };
 
     // ==================== 移动端数学公式大小配置 ====================
@@ -92,6 +88,10 @@ const RESOURCES = {
 
     // Mermaid图表
     mermaid: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/mermaid.min.js',
+
+    // 视频播放器 (Video.js)
+    videoJs: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/video.min.js',
+    videoJsCss: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/video-js.css',
 
     // KaTeX字体资源
     fonts: {
@@ -620,6 +620,68 @@ const RESOURCES = {
             }
         }
 
+        /* Video.js播放器样式优化 - 桌面端和移动端通用 */
+        .markdownRoot .video-js {
+            display: ${FEATURE_TOGGLES.enableVideoPlayback ? 'block' : 'none'};
+            margin: 1.5rem auto;
+            max-width: 100%;
+            width: 100%;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background: var(--back);
+            transition: box-shadow 0.2s ease;
+        }
+
+        .markdownRoot .video-js:hover {
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Video.js播放器容器 */
+        .markdownRoot .video-container {
+            position: relative;
+            display: ${FEATURE_TOGGLES.enableVideoPlayback ? 'block' : 'none'};
+            margin: 1.5rem auto;
+            max-width: 100%;
+        }
+
+        /* 原生video标签样式保留（作为后备） */
+        .markdownRoot video:not(.video-js) {
+            display: ${FEATURE_TOGGLES.enableVideoPlayback ? 'block' : 'none'};
+            margin: 1.5rem auto;
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background: var(--back);
+            transition: box-shadow 0.2s ease;
+        }
+
+        .markdownRoot video:not(.video-js):hover {
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Video.js播放器容器 */
+        .markdownRoot p .video-js,
+        .markdownRoot p .video-container {
+            display: ${FEATURE_TOGGLES.enableVideoPlayback ? 'block' : 'none'};
+            margin: 1.5rem auto;
+        }
+
+        /* 视频容器 - 原生video */
+        .markdownRoot p video:not(.video-js) {
+            display: ${FEATURE_TOGGLES.enableVideoPlayback ? 'block' : 'none'};
+            margin: 1.5rem auto;
+        }
+
+        /* 暗色主题下的视频样式 */
+        @media (prefers-color-scheme: dark) {
+            .markdownRoot .video-js,
+            .markdownRoot video:not(.video-js) {
+                filter: brightness(.9) contrast(1.1);
+            }
+        }
+
         /* 响应式设计 - 移动端优化 */
         @media (max-width: 900px) {
             body {
@@ -659,6 +721,32 @@ const RESOURCES = {
             .markdownRoot li:has(.katex) {
                 line-height: 2.0 !important; /* 包含行内公式的段落增加行高 */
                 margin: 0.8em 0; /* 增加段落间距 */
+            }
+
+            /* 移动端Video.js播放器响应式优化 */
+            .markdownRoot .video-js {
+                display: ${FEATURE_TOGGLES.enableVideoPlayback ? 'block' : 'none'};
+                margin: 0.8em auto;
+                max-width: 98%;
+                width: 98%; /* 强制使用98%宽度以适应移动端 */
+                height: auto; /* 保持宽高比 */
+                border-radius: 4px; /* 减小圆角 */
+            }
+
+            .markdownRoot .video-container {
+                margin: 0.8em auto;
+                max-width: 98%;
+                width: 98%;
+            }
+
+            /* 移动端原生video响应式优化 */
+            .markdownRoot video:not(.video-js) {
+                display: ${FEATURE_TOGGLES.enableVideoPlayback ? 'block' : 'none'};
+                margin: 0.8em auto;
+                max-width: 98%;
+                width: 98%; /* 强制使用98%宽度以适应移动端 */
+                height: auto; /* 保持宽高比 */
+                border-radius: 4px; /* 减小圆角 */
             }
 
             .markdown-tools {
@@ -893,7 +981,23 @@ const RESOURCES = {
         document.head.appendChild(style);
     }
 
-    // 获取markdown内容
+    // 预处理markdown内容，处理Windows路径分隔符
+    function preprocessMarkdown(content) {
+        // 处理markdown链接中的Windows反斜杠路径
+        // 匹配 [链接文本](路径) 格式，并将路径中的反斜杠替换为正斜杠
+        return content.replace(/\[([^\]]*)\]\(([^)]*)\)/g, function(match, linkText, linkUrl) {
+            // 只处理相对路径（不以http、https、mailto、#、data:开头的）
+            if (!linkUrl.startsWith('http://') && 
+                !linkUrl.startsWith('https://') && 
+                !linkUrl.startsWith('mailto:') && 
+                !linkUrl.startsWith('#') && 
+                !linkUrl.startsWith('data:')) {
+                // 将反斜杠替换为正斜杠
+                linkUrl = linkUrl.replace(/\\/g, '/');
+            }
+            return `[${linkText}](${linkUrl})`;
+        });
+    }
     function getMarkdownContent() {
         // 尝试多种方式获取markdown内容
 
@@ -980,7 +1084,7 @@ const RESOURCES = {
     // 创建markdown渲染器
     function createMarkdownRenderer() {
         if (!window.markdownit) {
-            throw new Error('markdown-it not loaded');
+            throw new Error('markdown-it 未加载成功');
         }
 
         const md = markdownit({
@@ -990,78 +1094,137 @@ const RESOURCES = {
             highlight: highlightCode
         });
 
-        // 添加插件
-        if (window.markdownitCheckbox) {
-            md.use(markdownitCheckbox);
+        // 安全地添加插件
+        try {
+            if (window.markdownitCheckbox) {
+                md.use(markdownitCheckbox);
+            }
+        } catch (e) {
+            console.warn('markdownitCheckbox plugin failed to load:', e);
         }
 
-        if (window.markdownitEmoji) {
-            md.use(markdownitEmoji);
+        try {
+            if (window.markdownitEmoji) {
+                md.use(markdownitEmoji);
+            }
+        } catch (e) {
+            console.warn('markdownitEmoji plugin failed to load:', e);
         }
 
-        if (window.markdownitFootnote) {
-            md.use(markdownitFootnote);
+        try {
+            if (window.markdownitFootnote) {
+                md.use(markdownitFootnote);
+            }
+        } catch (e) {
+            console.warn('markdownitFootnote plugin failed to load:', e);
         }
 
         // 添加数学公式支持（如果启用）
-        if (window.texmath && window.katex && FEATURE_TOGGLES.enableMathFormula) {
-            md.use(texmath, {
-                engine: katex,
-                delimiters: ['dollars', 'brackets'], // 支持 $$...$$ 和 $...$ 语法
-                katexOptions: {
-                    displayMode: false,
-                    throwOnError: false,
-                    output: 'html',
-                    trust: true,
-                    strict: false,
-                    macros: {
-                        "\\RR": "\\mathbb{R}",
-                        "\\CC": "\\mathbb{C}",
-                        "\\ZZ": "\\mathbb{Z}",
-                        "\\QQ": "\\mathbb{Q}",
-                        "\\NN": "\\mathbb{N}"
+        try {
+            if (window.texmath && window.katex && FEATURE_TOGGLES.enableMathFormula) {
+                md.use(texmath, {
+                    engine: katex,
+                    delimiters: ['dollars', 'brackets'], // 支持 $$...$$ 和 $...$ 语法
+                    katexOptions: {
+                        displayMode: false,
+                        throwOnError: false,
+                        output: 'html',
+                        trust: true,
+                        strict: false,
+                        macros: {
+                            "\\RR": "\\mathbb{R}",
+                            "\\CC": "\\mathbb{C}",
+                            "\\ZZ": "\\mathbb{Z}",
+                            "\\QQ": "\\mathbb{Q}",
+                            "\\NN": "\\mathbb{N}"
+                        }
                     }
-                }
-            });
+                });
+            }
+        } catch (e) {
+            console.warn('KaTeX math support failed to initialize:', e);
         }
 
         // 支持Mermaid图表（如果启用）
-        if (window.mermaid && FEATURE_TOGGLES.enableMermaidDiagram) {
-            const originalFence = md.renderer.rules.fence;
-            md.renderer.rules.fence = function(tokens, idx, options, env, self) {
-                const token = tokens[idx];
-                if (token.info === 'mermaid') {
-                    return `<div class="mermaid">${token.content.trim()}</div>`;
-                }
-                return originalFence ? originalFence(tokens, idx, options, env, self) : self.renderToken(tokens, idx, options);
-            };
+        try {
+            if (window.mermaid && FEATURE_TOGGLES.enableMermaidDiagram) {
+                const originalFence = md.renderer.rules.fence;
+                md.renderer.rules.fence = function(tokens, idx, options, env, self) {
+                    const token = tokens[idx];
+                    if (token.info === 'mermaid') {
+                        return `<div class="mermaid">${token.content.trim()}</div>`;
+                    }
+                    return originalFence ? originalFence(tokens, idx, options, env, self) : self.renderToken(tokens, idx, options);
+                };
+            }
+        } catch (e) {
+            console.warn('Mermaid support failed to initialize:', e);
         }
 
         // 优化图片处理 - 参考markdownview.js的正确方式
-        const originalImageRule = md.renderer.rules.image;
-        md.renderer.rules.image = function(tokens, idx, options, env, self) {
-            const token = tokens[idx];
-            const srcIndex = token.attrIndex('src');
+        try {
+            const originalImageRule = md.renderer.rules.image;
+            md.renderer.rules.image = function(tokens, idx, options, env, self) {
+                const token = tokens[idx];
+                const srcIndex = token.attrIndex('src');
 
-            if (srcIndex >= 0) {
-                const src = token.attrs[srcIndex][1];
+                if (srcIndex >= 0) {
+                    let src = token.attrs[srcIndex][1];
 
-                // 处理相对路径图片
-                if (!src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:')) {
-                    const currentUrl = window.location.href;
-                    const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
-                    token.attrs[srcIndex][1] = baseUrl + src;
+                    // 处理相对路径图片
+                    if (!src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:')) {
+                        // 将Windows反斜杠路径转换为正斜杠
+                        src = src.replace(/\\/g, '/');
+                        
+                        const currentUrl = window.location.href;
+                        const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
+                        token.attrs[srcIndex][1] = baseUrl + src;
+                    }
+
+                    // 简化图片标签，避免CORS问题
+                    const altIndex = token.attrIndex('alt');
+                    const alt = altIndex >= 0 ? token.attrs[altIndex][1] : '';
+
+                    return `<img src="${token.attrs[srcIndex][1]}" alt="${alt}" />`;
                 }
 
-                // 简化图片标签，避免CORS问题
-                const altIndex = token.attrIndex('alt');
-                const alt = altIndex >= 0 ? token.attrs[altIndex][1] : '';
+                return originalImageRule ? originalImageRule(tokens, idx, options, env, self) : self.renderToken(tokens, idx, options);
+            };
+        } catch (e) {
+            console.warn('Image renderer failed to initialize:', e);
+        }
 
-                return `<img src="${token.attrs[srcIndex][1]}" alt="${alt}" />`;
-            }
+        // 视频处理现在在DOM层面进行，不需要修改HTML渲染器
+        // Video.js 会在 initializeVideoFeatures() 中处理原生video标签
 
-            return originalImageRule ? originalImageRule(tokens, idx, options, env, self) : self.renderToken(tokens, idx, options);
-        };
+        // 优化链接处理 - 处理Windows反斜杠路径
+        try {
+            const originalLinkOpenRule = md.renderer.rules.link_open;
+            md.renderer.rules.link_open = function(tokens, idx, options, env, self) {
+                const token = tokens[idx];
+                const hrefIndex = token.attrIndex('href');
+
+                if (hrefIndex >= 0) {
+                    let href = token.attrs[hrefIndex][1];
+
+                    // 处理相对路径链接，将Windows反斜杠转换为正斜杠
+                    if (!href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('mailto:') && !href.startsWith('#') && !href.startsWith('data:')) {
+                        // 将Windows反斜杠路径转换为正斜杠
+                        href = href.replace(/\\/g, '/');
+                        token.attrs[hrefIndex][1] = href;
+                    }
+                }
+
+                // 使用默认渲染器或自定义渲染器
+                if (originalLinkOpenRule) {
+                    return originalLinkOpenRule(tokens, idx, options, env, self);
+                } else {
+                    return self.renderToken(tokens, idx, options);
+                }
+            };
+        } catch (e) {
+            console.warn('Link renderer failed to initialize:', e);
+        }
 
         return md;
     }
@@ -1376,6 +1539,220 @@ const RESOURCES = {
         });
     }
 
+    // 初始化视频功能 - 使用Video.js播放器
+    function initializeVideoFeatures() {
+        if (!window.videojs) {
+            console.warn('Video.js 未加载，尝试使用原生video标签');
+            initializeFallbackVideo();
+            return;
+        }
+
+        // 查找所有原生video标签并转换为Video.js播放器
+        const nativeVideos = document.querySelectorAll('.markdownRoot video:not(.video-js)');
+        let convertCount = 0;
+        
+        nativeVideos.forEach(nativeVideo => {
+            try {
+                // 将原生video转换为Video.js格式
+                const videoJSElement = convertNativeToVideoJS(nativeVideo);
+                
+                // 替换原生video标签
+                nativeVideo.parentNode.replaceChild(videoJSElement, nativeVideo);
+                
+                // 初始化Video.js播放器
+                const videoElement = videoJSElement.querySelector('.video-js');
+                const player = videojs(videoElement, {
+                    responsive: true,
+                    fluid: true,
+                    playbackRates: [0.5, 1, 1.5, 2], // 播放速度选项
+                    controls: true,
+                    preload: 'metadata',
+                    // 移动端优化
+                    mobileUi: true,
+                    touchOverlay: 'auto',
+                    // 启用画中画
+                    enableDocumentPictureInPicture: true,
+                    // 错误处理
+                    errorDisplay: true
+                });
+
+                // 播放器就绪后的配置
+                player.ready(() => {
+                    console.log(`Video.js 播放器 ${videoElement.id} 初始化成功`);
+                    convertCount++;
+                    
+                    // 移动端特殊处理
+                    if ('ontouchstart' in window) {
+                        player.fluid(true); // 移动端流式布局
+                        player.aspectRatio('16:9'); // 保持宽高比
+                    }
+                });
+
+                // 错误处理
+                player.on('error', function(error) {
+                    console.error('Video.js 播放器错误:', error);
+                    const errorData = player.error();
+                    if (errorData) {
+                        console.error('错误详情:', errorData);
+                        showVideoError(videoElement, errorData);
+                    }
+                });
+
+                // 播放器加载完成
+                player.on('loadedmetadata', function() {
+                    console.log('视频元数据加载完成:', videoElement.id);
+                });
+
+            } catch (error) {
+                console.error('转换Video.js播放器失败:', error);
+                // 保持原生video但添加基础功能
+                enhanceNativeVideo(nativeVideo);
+            }
+        });
+        
+        console.log(`已转换 ${convertCount} 个原生video为 Video.js 播放器`);
+    }
+
+    // 将原生video标签转换为Video.js格式的DOM元素
+    function convertNativeToVideoJS(nativeVideo) {
+        // 生成唯一ID
+        const playerId = 'video-player-' + Math.random().toString(36).substr(2, 9);
+        
+        // 获取原生video的属性
+        const src = nativeVideo.src || nativeVideo.querySelector('source')?.src;
+        const width = nativeVideo.width || nativeVideo.getAttribute('width') || '800';
+        const height = nativeVideo.height || nativeVideo.getAttribute('height') || '450';
+        const poster = nativeVideo.poster || nativeVideo.getAttribute('poster') || '';
+        const autoplay = nativeVideo.hasAttribute('autoplay');
+        const muted = nativeVideo.hasAttribute('muted');
+        const loop = nativeVideo.hasAttribute('loop');
+        
+        // 获取fallback内容
+        const fallbackContent = nativeVideo.innerHTML || `<a href="${src}" target="_blank">点击直接观看视频</a>`;
+        
+        // 创建Video.js容器
+        const container = document.createElement('div');
+        container.className = 'video-container';
+        
+        // 创建Video.js播放器HTML
+        container.innerHTML = `
+            <video 
+                id="${playerId}"
+                class="video-js vjs-default-skin" 
+                controls 
+                preload="auto" 
+                data-setup='{"responsive": true, "fluid": true}'
+                width="${width}"
+                height="${height}"
+                ${poster ? `poster="${poster}"` : ''}
+                ${autoplay ? 'autoplay' : ''}
+                ${muted ? 'muted' : ''}
+                ${loop ? 'loop' : ''}
+                playsinline>
+                ${src ? `<source src="${src}" type="video/mp4">` : ''}
+                <p class="vjs-no-js">
+                    要查看此视频，请启用 JavaScript，并考虑升级到
+                    <a href="https://videojs.com/html5-video-support/" target="_blank">
+                        支持HTML5视频的网络浏览器
+                    </a>。
+                    ${fallbackContent}
+                </p>
+            </video>
+        `;
+        
+        return container;
+    }
+
+    // 增强原生video标签（降级方案）
+    function enhanceNativeVideo(video) {
+        // 确保视频有必要的属性
+        if (!video.hasAttribute('controls')) {
+            video.setAttribute('controls', 'controls');
+        }
+        
+        // 添加响应式属性
+        video.style.maxWidth = '100%';
+        video.style.height = 'auto';
+        
+        // 移动端优化：预加载元数据
+        video.setAttribute('preload', 'metadata');
+        
+        // 移动端触摸优化
+        if ('ontouchstart' in window) {
+            video.setAttribute('playsinline', 'playsinline'); // iOS内联播放
+            video.style.webkitPlaysinline = 'true'; // iOS兼容
+        }
+        
+        // 添加播放失败处理
+        video.addEventListener('error', function(e) {
+            console.error('视频加载失败:', e);
+            showVideoError(video, e);
+        });
+    }
+
+    // 后备方案：初始化原生video标签
+    function initializeFallbackVideo() {
+        const videos = document.querySelectorAll('.markdownRoot video:not(.video-js)');
+        videos.forEach(video => {
+            enhanceNativeVideo(video);
+        });
+        
+        console.log(`已初始化 ${videos.length} 个原生video元素`);
+    }
+
+    // 显示视频错误信息
+    function showVideoError(videoElement, error) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+            color: var(--text);
+            margin: 1.5rem auto;
+            max-width: 100%;
+        `;
+        
+        const videoSrc = videoElement.querySelector('source')?.src || 
+                        videoElement.src || 
+                        videoElement.getAttribute('data-src') || 
+                        '#';
+        
+        errorDiv.innerHTML = `
+            <p>⚠️ 视频播放器加载失败</p>
+            <p>错误信息: ${error.message || '未知错误'}</p>
+            <p><a href="${videoSrc}" target="_blank" style="color: var(--link);">点击这里直接访问视频</a></p>
+        `;
+        
+        videoElement.parentNode.replaceChild(errorDiv, videoElement);
+    }
+
+    // 将Video.js播放器转换为原生video（降级处理）
+    function convertToNativeVideo(videoElement) {
+        const nativeVideo = document.createElement('video');
+        nativeVideo.controls = true;
+        nativeVideo.preload = 'metadata';
+        nativeVideo.style.maxWidth = '100%';
+        nativeVideo.style.height = 'auto';
+        
+        // 复制源
+        const sources = videoElement.querySelectorAll('source');
+        sources.forEach(source => {
+            nativeVideo.appendChild(source.cloneNode(true));
+        });
+        
+        // 复制属性
+        ['width', 'height', 'poster', 'autoplay', 'muted', 'loop'].forEach(attr => {
+            if (videoElement.hasAttribute(attr)) {
+                nativeVideo.setAttribute(attr, videoElement.getAttribute(attr));
+            }
+        });
+        
+        videoElement.parentNode.replaceChild(nativeVideo, videoElement);
+        console.log('已降级为原生video标签');
+    }
+
     // 显示图片放大模态框
     function showImageModal(src, alt) {
         // 创建模态框
@@ -1500,9 +1877,11 @@ const RESOURCES = {
             await Promise.all([
                 loadCSS(RESOURCES.highlightCss),
                 loadCSS(RESOURCES.katexCss),
+                loadCSS(RESOURCES.videoJsCss), // Video.js CSS
                 loadScript(RESOURCES.markdownIt),
                 loadScript(RESOURCES.highlightJs),
-                loadScript(RESOURCES.katex)
+                loadScript(RESOURCES.katex),
+                loadScript(RESOURCES.videoJs) // Video.js
             ]);
 
             // 加载插件（可选）
@@ -1515,11 +1894,14 @@ const RESOURCES = {
             ]);
 
             // 获取原始markdown内容
-            const markdownContent = getMarkdownContent();
+            const rawMarkdownContent = getMarkdownContent();
 
-            if (!markdownContent || markdownContent.trim().length === 0) {
+            if (!rawMarkdownContent || rawMarkdownContent.trim().length === 0) {
                 throw new Error('未找到有效的Markdown内容');
             }
+
+            // 预处理markdown内容，处理Windows路径分隔符
+            const markdownContent = preprocessMarkdown(rawMarkdownContent);
 
             // 移除加载状态
             const loadingDiv = document.querySelector('.loading');
@@ -1581,6 +1963,11 @@ const RESOURCES = {
             // 初始化图片功能（如果启用）
             if (FEATURE_TOGGLES.enableImageZoom) {
                 initializeImageFeatures();
+            }
+
+            // 初始化视频功能（支持桌面端和移动端，如果启用）
+            if (FEATURE_TOGGLES.enableVideoPlayback) {
+                initializeVideoFeatures();
             }
 
             // 添加代码复制按钮（如果启用）
