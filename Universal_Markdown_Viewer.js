@@ -9,8 +9,7 @@
 // @match        file://*/*.mdown
 // @match        file://*/*.mkd
 // @match        file://*/*.mkdn
-// @match        http://192.168.*/*.md
-// @match        https://192.168.*/*.md
+// @include      /^https?:\/\/192\.168\..*/.*\.md.*$/
 // @match        https://*.ninglang.top*/*.md
 // @match        http://*.ninglang.top*/*.md
 
@@ -78,40 +77,125 @@
     };
 
     // ==================== 资源链接配置 ====================
-    // 以下是所需的CDN资源链接，可以下载到本地后修改这些路径
-const RESOURCES = {
-    // Markdown解析器
-    markdownIt: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/markdown-it.min.js',
+    // 默认资源服务器配置（回退使用）
+    const DEFAULT_RESOURCE_BASE = 'https://share.ninglang.top:7012';
 
-    // 插件
-    markdownItCheckbox: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/markdown-it-checkbox.min.js',
-    markdownItEmoji: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/markdown-it-emoji.min.js',
-    markdownItFootnote: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/markdown-it-footnote.min.js',
+    // 自适应资源加载说明：
+    // 1. 优先尝试从当前访问域名/IP加载资源
+    // 2. 如果当前域名加载失败，自动回退到默认资源服务器
+    // 3. 支持HTTP和HTTPS协议自动适配
+    // 4. 自动处理端口号（80/443端口会被省略）
+    //
+    // 示例：
+    // - 从 https://share.ninglang.top:7012 访问 → 资源路径：https://share.ninglang.top:7012/web/resource/...
+    // - 从 http://192.168.10.14 访问 → 资源路径：http://192.168.10.14/web/resource/...
+    // - 如果本地资源加载失败 → 自动回退到：https://share.ninglang.top:7012/web/resource/...
 
-    // 代码高亮
-    highlightJs: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/highlight.min.js',
-    highlightCss: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/default.min.css',
+    // 获取当前访问的基础URL，自适应不同IP和域名
+    function getAdaptiveResourceBase() {
+        const currentLocation = window.location;
+        const protocol = currentLocation.protocol; // http: 或 https:
+        const hostname = currentLocation.hostname; // IP或域名
+        const port = currentLocation.port; // 端口号
 
-    // 数学公式
-    katex: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/katex.min.js',
-    katexCss: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/katex.min.css',
-    markdownItTexmath: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/texmath.min.js',
+        // 构建自适应的基础URL
+        let adaptiveBase = protocol + '//' + hostname;
 
-    // Mermaid图表
-    mermaid: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/mermaid.min.js',
+        // 处理端口号：HTTP默认80端口，HTTPS默认443端口时可以省略
+        if (port &&
+            !((protocol === 'http:' && port === '80') ||
+              (protocol === 'https:' && port === '443'))) {
+            adaptiveBase += ':' + port;
+        }
 
-    // 视频播放器 (Video.js)
-    videoJs: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/video.min.js',
-    videoJsCss: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/video-js.css',
-
-    // KaTeX字体资源
-    fonts: {
-        katexMain: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/fonts/KaTeX_Main-Regular.woff2',
-        katexMainWoff: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/fonts/KaTeX_Main-Regular.woff',
-        katexMath: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/fonts/KaTeX_Math-Italic.woff2',
-        katexMathWoff: 'https://share.ninglang.top:7012/web/resource/markdown-desktop/fonts/KaTeX_Math-Italic.woff'
+        console.log(`自适应资源基础URL: ${adaptiveBase} (来源: ${protocol}//${hostname}:${port || '默认端口'})`);
+        return adaptiveBase;
     }
-};
+
+    // 生成资源URL的函数，支持回退机制
+    function generateResourceUrl(relativePath, useDefault = false) {
+        const baseUrl = useDefault ? DEFAULT_RESOURCE_BASE : getAdaptiveResourceBase();
+        return baseUrl + '/web/resource/markdown-desktop/' + relativePath;
+    }
+
+    // 资源路径配置（相对路径）
+    const RESOURCE_PATHS = {
+        // Markdown解析器
+        markdownIt: 'markdown-it.min.js',
+
+        // 插件
+        markdownItCheckbox: 'markdown-it-checkbox.min.js',
+        markdownItEmoji: 'markdown-it-emoji.min.js',
+        markdownItFootnote: 'markdown-it-footnote.min.js',
+
+        // 代码高亮
+        highlightJs: 'highlight.min.js',
+        highlightCss: 'default.min.css',
+
+        // 数学公式
+        katex: 'katex.min.js',
+        katexCss: 'katex.min.css',
+        markdownItTexmath: 'texmath.min.js',
+
+        // Mermaid图表
+        mermaid: 'mermaid.min.js',
+
+        // 视频播放器 (Video.js)
+        videoJs: 'video.min.js',
+        videoJsCss: 'video-js.css',
+
+        // KaTeX字体资源
+        fonts: {
+            katexMain: 'fonts/KaTeX_Main-Regular.woff2',
+            katexMainWoff: 'fonts/KaTeX_Main-Regular.woff',
+            katexMath: 'fonts/KaTeX_Math-Italic.woff2',
+            katexMathWoff: 'fonts/KaTeX_Math-Italic.woff'
+        }
+    };
+
+    // 动态生成的资源URL对象
+    const RESOURCES = {
+        get markdownIt() { return generateResourceUrl(RESOURCE_PATHS.markdownIt); },
+        get markdownItCheckbox() { return generateResourceUrl(RESOURCE_PATHS.markdownItCheckbox); },
+        get markdownItEmoji() { return generateResourceUrl(RESOURCE_PATHS.markdownItEmoji); },
+        get markdownItFootnote() { return generateResourceUrl(RESOURCE_PATHS.markdownItFootnote); },
+        get highlightJs() { return generateResourceUrl(RESOURCE_PATHS.highlightJs); },
+        get highlightCss() { return generateResourceUrl(RESOURCE_PATHS.highlightCss); },
+        get katex() { return generateResourceUrl(RESOURCE_PATHS.katex); },
+        get katexCss() { return generateResourceUrl(RESOURCE_PATHS.katexCss); },
+        get markdownItTexmath() { return generateResourceUrl(RESOURCE_PATHS.markdownItTexmath); },
+        get mermaid() { return generateResourceUrl(RESOURCE_PATHS.mermaid); },
+        get videoJs() { return generateResourceUrl(RESOURCE_PATHS.videoJs); },
+        get videoJsCss() { return generateResourceUrl(RESOURCE_PATHS.videoJsCss); },
+        fonts: {
+            get katexMain() { return generateResourceUrl(RESOURCE_PATHS.fonts.katexMain); },
+            get katexMainWoff() { return generateResourceUrl(RESOURCE_PATHS.fonts.katexMainWoff); },
+            get katexMath() { return generateResourceUrl(RESOURCE_PATHS.fonts.katexMath); },
+            get katexMathWoff() { return generateResourceUrl(RESOURCE_PATHS.fonts.katexMathWoff); }
+        }
+    };
+
+    // 默认资源URL对象（回退使用）
+    const DEFAULT_RESOURCES = {
+        get markdownIt() { return generateResourceUrl(RESOURCE_PATHS.markdownIt, true); },
+        get markdownItCheckbox() { return generateResourceUrl(RESOURCE_PATHS.markdownItCheckbox, true); },
+        get markdownItEmoji() { return generateResourceUrl(RESOURCE_PATHS.markdownItEmoji, true); },
+        get markdownItFootnote() { return generateResourceUrl(RESOURCE_PATHS.markdownItFootnote, true); },
+        get highlightJs() { return generateResourceUrl(RESOURCE_PATHS.highlightJs, true); },
+        get highlightCss() { return generateResourceUrl(RESOURCE_PATHS.highlightCss, true); },
+        get katex() { return generateResourceUrl(RESOURCE_PATHS.katex, true); },
+        get katexCss() { return generateResourceUrl(RESOURCE_PATHS.katexCss, true); },
+        get markdownItTexmath() { return generateResourceUrl(RESOURCE_PATHS.markdownItTexmath, true); },
+        get mermaid() { return generateResourceUrl(RESOURCE_PATHS.mermaid, true); },
+        get videoJs() { return generateResourceUrl(RESOURCE_PATHS.videoJs, true); },
+        get videoJsCss() { return generateResourceUrl(RESOURCE_PATHS.videoJsCss, true); },
+        fonts: {
+            get katexMain() { return generateResourceUrl(RESOURCE_PATHS.fonts.katexMain, true); },
+            get katexMainWoff() { return generateResourceUrl(RESOURCE_PATHS.fonts.katexMainWoff, true); },
+            get katexMath() { return generateResourceUrl(RESOURCE_PATHS.fonts.katexMath, true); },
+            get katexMathWoff() { return generateResourceUrl(RESOURCE_PATHS.fonts.katexMathWoff, true); }
+        }
+    };
 
     // ==================== 样式配置 ====================
     function generateCSS() {
@@ -593,11 +677,11 @@ const RESOURCES = {
             display: ${FEATURE_TOGGLES.enableMathFormula ? 'inline' : 'none'};
         }
 
-        /* 确保KaTeX字体加载 */
+        /* 确保KaTeX字体加载 - 使用自适应URL */
         @font-face {
             font-family: 'KaTeX_Main';
-            src: url('https://share.ninglang.top:7012/web/resource/markdown-desktop/fonts/KaTeX_Main-Regular.woff2') format('woff2'),
-                 url('https://share.ninglang.top:7012/web/resource/markdown-desktop/fonts/KaTeX_Main-Regular.woff') format('woff');
+            src: url('${RESOURCES.fonts.katexMain}') format('woff2'),
+                 url('${RESOURCES.fonts.katexMainWoff}') format('woff');
             font-weight: normal;
             font-style: normal;
             font-display: swap;
@@ -605,8 +689,8 @@ const RESOURCES = {
 
         @font-face {
             font-family: 'KaTeX_Math';
-            src: url('https://share.ninglang.top:7012/web/resource/markdown-desktop/fonts/KaTeX_Math-Italic.woff2') format('woff2'),
-                 url('https://share.ninglang.top:7012/web/resource/markdown-desktop/fonts/KaTeX_Math-Italic.woff') format('woff');
+            src: url('${RESOURCES.fonts.katexMath}') format('woff2'),
+                 url('${RESOURCES.fonts.katexMathWoff}') format('woff');
             font-weight: normal;
             font-style: italic;
             font-display: swap;
@@ -1141,26 +1225,111 @@ const RESOURCES = {
         return false;
     }
 
-    // 动态加载脚本
-    function loadScript(src) {
+    // 动态加载脚本，支持回退机制
+    function loadScript(src, fallbackSrc = null) {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
+
+            script.onload = () => {
+                console.log(`成功加载脚本: ${src}`);
+                resolve();
+            };
+
+            script.onerror = () => {
+                console.warn(`主资源加载失败: ${src}`);
+
+                // 如果有回退URL，尝试使用回退URL
+                if (fallbackSrc && fallbackSrc !== src) {
+                    console.log(`尝试回退资源: ${fallbackSrc}`);
+
+                    // 移除失败的脚本标签
+                    document.head.removeChild(script);
+
+                    // 创建新的脚本标签使用回退URL
+                    const fallbackScript = document.createElement('script');
+                    fallbackScript.src = fallbackSrc;
+
+                    fallbackScript.onload = () => {
+                        console.log(`回退资源加载成功: ${fallbackSrc}`);
+                        resolve();
+                    };
+
+                    fallbackScript.onerror = () => {
+                        console.error(`回退资源也加载失败: ${fallbackSrc}`);
+                        reject(new Error(`脚本加载失败: ${src} 和 ${fallbackSrc}`));
+                    };
+
+                    document.head.appendChild(fallbackScript);
+                } else {
+                    reject(new Error(`脚本加载失败: ${src}`));
+                }
+            };
+
             document.head.appendChild(script);
         });
     }
 
-    // 动态加载CSS
-    function loadCSS(href) {
+    // 动态加载CSS，支持回退机制
+    function loadCSS(href, fallbackHref = null) {
         return new Promise((resolve) => {
             const link = document.createElement('link');
             link.rel = 'stylesheet';
             link.href = href;
-            link.onload = resolve;
+
+            link.onload = () => {
+                console.log(`成功加载样式: ${href}`);
+                resolve();
+            };
+
+            link.onerror = () => {
+                console.warn(`主样式加载失败: ${href}`);
+
+                // 如果有回退URL，尝试使用回退URL
+                if (fallbackHref && fallbackHref !== href) {
+                    console.log(`尝试回退样式: ${fallbackHref}`);
+
+                    // 移除失败的样式标签
+                    document.head.removeChild(link);
+
+                    // 创建新的样式标签使用回退URL
+                    const fallbackLink = document.createElement('link');
+                    fallbackLink.rel = 'stylesheet';
+                    fallbackLink.href = fallbackHref;
+
+                    fallbackLink.onload = () => {
+                        console.log(`回退样式加载成功: ${fallbackHref}`);
+                        resolve();
+                    };
+
+                    fallbackLink.onerror = () => {
+                        console.warn(`回退样式也加载失败: ${fallbackHref}`);
+                        resolve(); // CSS加载失败不阻塞渲染
+                    };
+
+                    document.head.appendChild(fallbackLink);
+                } else {
+                    console.warn(`样式加载失败: ${href}`);
+                    resolve(); // CSS加载失败不阻塞渲染
+                }
+            };
+
             document.head.appendChild(link);
         });
+    }
+
+    // 安全加载脚本的封装函数
+    function loadScriptWithFallback(resourceKey) {
+        const primaryUrl = RESOURCES[resourceKey];
+        const fallbackUrl = DEFAULT_RESOURCES[resourceKey];
+        return loadScript(primaryUrl, fallbackUrl);
+    }
+
+    // 安全加载CSS的封装函数
+    function loadCSSWithFallback(resourceKey) {
+        const primaryUrl = RESOURCES[resourceKey];
+        const fallbackUrl = DEFAULT_RESOURCES[resourceKey];
+        return loadCSS(primaryUrl, fallbackUrl);
     }
 
     // 添加自定义样式
@@ -1503,8 +1672,45 @@ const RESOURCES = {
             linkText = `<a href="${url}">${fileName}</a>`;
         }
 
-        // 复制到剪贴板
-        navigator.clipboard.writeText(linkText).then(() => {
+        // 复制到剪贴板的函数
+        function copyToClipboard(text) {
+            // 方法1：尝试使用现代 Clipboard API（HTTPS环境）
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text);
+            }
+
+            // 方法2：回退到传统的 execCommand 方法（HTTP环境兼容）
+            return new Promise((resolve, reject) => {
+                try {
+                    // 创建临时的textarea元素
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-9999px';
+                    textArea.style.top = '-9999px';
+                    document.body.appendChild(textArea);
+
+                    // 选择并复制文本
+                    textArea.select();
+                    textArea.setSelectionRange(0, text.length);
+
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+
+                    if (successful) {
+                        resolve();
+                    } else {
+                        reject(new Error('execCommand复制失败'));
+                    }
+                } catch (err) {
+                    document.body.removeChild(textArea);
+                    reject(err);
+                }
+            });
+        }
+
+        // 执行复制操作
+        copyToClipboard(linkText).then(() => {
             // 显示已复制状态
             button.textContent = '已复制';
             button.classList.add('copied');
@@ -1516,10 +1722,51 @@ const RESOURCES = {
             }, 2000);
         }).catch(err => {
             console.error('复制失败:', err);
-            button.textContent = '失败';
+
+            // 如果复制失败，显示链接文本让用户手动复制
+            const textToCopy = linkText;
+
+            // 创建一个临时的提示框显示要复制的内容
+            const tempDiv = document.createElement('div');
+            tempDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--alt-back);
+                border: 2px solid var(--border);
+                border-radius: 8px;
+                padding: 20px;
+                max-width: 80%;
+                word-break: break-all;
+                z-index: 10000;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            `;
+
+            tempDiv.innerHTML = `
+                <p style="margin: 0 0 10px 0; color: var(--text);">复制功能不可用，请手动选择并复制以下内容：</p>
+                <textarea readonly style="width: 100%; height: 60px; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--back); color: var(--text); resize: none;">${textToCopy}</textarea>
+                <button onclick="this.parentElement.remove()" style="margin-top: 10px; padding: 8px 16px; background: var(--link); color: white; border: none; border-radius: 4px; cursor: pointer;">关闭</button>
+            `;
+
+            document.body.appendChild(tempDiv);
+
+            // 自动选择textarea中的文本
+            const textarea = tempDiv.querySelector('textarea');
+            textarea.select();
+            textarea.setSelectionRange(0, textToCopy.length);
+
+            // 10秒后自动关闭
+            setTimeout(() => {
+                if (tempDiv.parentNode) {
+                    tempDiv.remove();
+                }
+            }, 10000);
+
+            button.textContent = '手动复制';
             setTimeout(() => {
                 button.textContent = '复制';
-            }, 2000);
+            }, 3000);
         });
     };
 
@@ -2455,24 +2702,24 @@ const RESOURCES = {
             // 添加样式
             addCustomStyles();
 
-            // 并行加载所有资源
+            // 并行加载所有资源，使用回退机制
             await Promise.all([
-                loadCSS(RESOURCES.highlightCss),
-                loadCSS(RESOURCES.katexCss),
-                loadCSS(RESOURCES.videoJsCss), // Video.js CSS
-                loadScript(RESOURCES.markdownIt),
-                loadScript(RESOURCES.highlightJs),
-                loadScript(RESOURCES.katex),
-                loadScript(RESOURCES.videoJs) // Video.js
+                loadCSSWithFallback('highlightCss'),
+                loadCSSWithFallback('katexCss'),
+                loadCSSWithFallback('videoJsCss'), // Video.js CSS
+                loadScriptWithFallback('markdownIt'),
+                loadScriptWithFallback('highlightJs'),
+                loadScriptWithFallback('katex'),
+                loadScriptWithFallback('videoJs') // Video.js
             ]);
 
-            // 加载插件（可选）
+            // 加载插件（可选），使用回退机制
             await Promise.allSettled([
-                loadScript(RESOURCES.markdownItCheckbox),
-                loadScript(RESOURCES.markdownItEmoji),
-                loadScript(RESOURCES.markdownItFootnote),
-                loadScript(RESOURCES.markdownItTexmath),
-                loadScript(RESOURCES.mermaid)
+                loadScriptWithFallback('markdownItCheckbox'),
+                loadScriptWithFallback('markdownItEmoji'),
+                loadScriptWithFallback('markdownItFootnote'),
+                loadScriptWithFallback('markdownItTexmath'),
+                loadScriptWithFallback('mermaid')
             ]);
 
             // 获取原始markdown内容
