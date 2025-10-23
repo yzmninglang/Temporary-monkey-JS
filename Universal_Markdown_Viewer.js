@@ -53,19 +53,19 @@
         display: {
             // 基础移动端 (≤ 900px)
             base: {
-                fontSize: '1.1em',  // 增大行间公式字体
-                lineHeight: '1.5',
-                minHeight: '2em',
-                padding: '0.5em 0',
-                margin: '0.5em 0'
+                fontSize: '1.1em',     // 增大行间公式字体
+                lineHeight: '1.0',     // 🔧 行高配置: 1.0(紧凑) 1.1(正常) 1.2(宽松) 1.3(很宽松)
+                minHeight: '1em',
+                padding: '0.3em 0',
+                margin: '0.3em 0'
             },
             // 小屏设备 (≤ 600px)
             small: {
-                fontSize: '1.15em'  // 保持合理大小
+                fontSize: '1.15em'     // 保持合理大小
             },
             // 超小屏设备 (≤ 400px)
             xsmall: {
-                fontSize: '1.0em',  // 从0.8em增大到1.0em
+                fontSize: '1.0em',     // 从0.8em增大到1.0em
                 margin: '0.3em 0'
             }
         },
@@ -699,7 +699,6 @@
         /* 高质量数学公式渲染 */
         .katex-display > .katex > .katex-html {
             font-size: 1.2em;
-            line-height: 1.4;
         }
 
         /* 桌面端行间公式字体大小确保 */
@@ -973,6 +972,11 @@
                 position: relative;
             }
 
+            /* 确保移动端行间公式内部元素使用配置的行高 */
+            .katex-display > .katex > .katex-html {
+                line-height: ${MOBILE_FORMULA_CONFIG.display.base.lineHeight} !important;
+            }
+
             /* 修复tag标签在长公式中的显示问题 */
             .katex-display .katex {
                 position: relative;
@@ -1027,16 +1031,32 @@
             .katex-display {
                 font-size: ${MOBILE_FORMULA_CONFIG.display.xsmall.fontSize};
                 margin: ${MOBILE_FORMULA_CONFIG.display.xsmall.margin};
+                line-height: ${MOBILE_FORMULA_CONFIG.display.base.lineHeight} !important;
+            }
+
+            .katex-display > .katex > .katex-html {
+                line-height: ${MOBILE_FORMULA_CONFIG.display.base.lineHeight} !important;
             }
 
             section eqn {
                 font-size: ${MOBILE_FORMULA_CONFIG.display.xsmall.fontSize};
                 margin: ${MOBILE_FORMULA_CONFIG.display.xsmall.margin};
+                line-height: ${MOBILE_FORMULA_CONFIG.display.base.lineHeight} !important;
             }
         }
 
         /* 移动设备基本处理 */
         @media (max-width: 900px) {
+            /* 强制所有行间公式元素使用配置的行高 */
+            .katex-display,
+            .katex-display *,
+            .katex-display .katex,
+            .katex-display .katex *,
+            .katex-display .katex-html,
+            .katex-display .katex-html * {
+                line-height: ${MOBILE_FORMULA_CONFIG.display.base.lineHeight} !important;
+            }
+
             /* 超长公式横向滚动 */
             .katex-display[style*="width"],
             section eqn[style*="width"] {
